@@ -11,9 +11,12 @@ from fastapi import FastAPI, HTTPException, Header, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
-from typing import Optional
+from typing import Optional, Any
 import time
 import traceback
+import json
+from datetime import datetime
+import os
 
 # Import modules
 from audio_processor import audio_processor
@@ -41,23 +44,14 @@ app.add_middleware(
 # Request/Response Models
 class DetectionRequest(BaseModel):
     """Request model for voice detection - matches competition format."""
-    message: Optional[str] = Field(None, description="Short message describing the test request")
-    language: str = Field(..., description="Language of the audio (en, ta, hi, ml, te)")
-    audio_format: str = Field(default="mp3", alias="audioFormat", description="Audio format (mp3, wav)")
-    audio_base64_format: Optional[str] = Field(None, alias="audioBase64", description="Base64-encoded audio data")
-    audio_url: Optional[str] = Field(None, alias="audioUrl", description="URL to the audio file")
+    message: Optional[Any] = Field(None, description="Short message or data describing the test request")
+    language: Optional[Any] = Field(default="en", description="Language of the audio (en, ta, hi, ml, te)")
+    audio_format: Optional[Any] = Field(default="mp3", alias="audioFormat", description="Audio format (mp3, wav)")
+    audio_base64_format: Optional[Any] = Field(None, alias="audioBase64", description="Base64-encoded audio data")
+    audio_url: Optional[Any] = Field(None, alias="audioUrl", description="URL to the audio file")
 
     class Config:
         populate_by_name = True
-        json_schema_extra = {
-            "example": {
-                "message": "Testing sample voice",
-                "language": "en",
-                "audioFormat": "mp3",
-                "audioBase64": "//uQxAAAAAANIAAAAAExBTUUzLjEwMFVVVVVVVVVVVVVV...",
-                "audioUrl": "http://example.com/audio.mp3"
-            }
-        }
 
 
 class DetectionResponse(BaseModel):
@@ -69,16 +63,6 @@ class DetectionResponse(BaseModel):
         default=None,
         description="Detected language of the audio"
     )
-
-    class Config:
-        json_schema_extra = {
-            "example": {
-                "classification": "AI",
-                "confidence": 0.87,
-                "explanation": "The audio sample exhibits characteristics typical of AI-generated speech...",
-                "detected_language": "English"
-            }
-        }
 
 
 class HealthResponse(BaseModel):
@@ -93,6 +77,28 @@ class ErrorResponse(BaseModel):
     """Error response model."""
     error: str
     detail: Optional[str] = None
+
+
+# Helper: Log Interaction for Honeypot analysis
+def log_interaction(event_type, data, level="info"):
+    log_entry = {
+        "timestamp": datetime.now().isoformat(),
+        "type": event_type,
+        "level": level,
+        "data": data
+    }
+    
+    # Print to console
+    color = "\033[92m" if level == "info" else "\033[91m"
+    print(f"{color}[{event_type}] {json.dumps(data)}\033[0m")
+    
+    # Save to file
+    log_file = "interactions.jsonl"
+    try:
+        with open(log_file, "a") as f:
+            f.write(json.dumps(log_entry) + "\n")
+    except Exception as e:
+        print(f"Error writing to log: {e}")
 
 
 # API Endpoints
@@ -139,18 +145,34 @@ async def detect_voice(
     """
     start_time = time.time()
     
-    try:
-        if request.message:
-            print(f"Request message: {request.message}")
+    # 🛡️ SECURITY: Validate API Key (Required for Honeypot Tester)
+    VALID_API_KEY = "mozhil-api-key-2024"
+    if x_api_key != VALID_API_KEY:
+        # Log unauthenticated attempt
+        log_interaction("UNAUTHORIZED_ATTEMPT", {"provided_key": x_api_key}, "error")
+        raise HTTPException(
+            status_code=401, 
+            detail="Unauthorized: Invalid or missing API key"
+        )
 
+    # 📝 HONEPOT LOGGING: Record the interaction
+    log_interaction("DETECT_REQUEST", {
+        "language": request.language,
+        "format": request.audio_format,
+        "has_base64": bool(request.audio_base64_format),
+        "has_url": bool(request.audio_url),
+        "message": request.message
+    })
+    
+    try:
         # Get audio data (Base64 or URL)
         audio_bytes = None
-        audio_format = request.audio_format.lower() if request.audio_format else "mp3"
+        audio_format_str = str(request.audio_format).lower() if request.audio_format else "mp3"
         
         if request.audio_base64_format:
             # Process Base64
             try:
-                audio_bytes = audio_processor.decode_base64_audio(request.audio_base64_format)
+                audio_bytes = audio_processor.decode_base64_audio(str(request.audio_base64_format))
             except Exception as e:
                 raise HTTPException(status_code=400, detail=f"Base64 decoding failed: {str(e)}")
         
@@ -159,25 +181,34 @@ async def detect_voice(
             import httpx
             try:
                 async with httpx.AsyncClient() as client:
-                    resp = await client.get(request.audio_url, timeout=30.0)
+                    resp = await client.get(str(request.audio_url), timeout=30.0)
                     if resp.status_code != 200:
-                        raise HTTPException(status_code=400, detail=f"Failed to download audio from URL. Status: {resp.status_code}")
+                        raise HTTPException(status_code=400, detail=f"Failed to download audio. Status: {resp.status_code}")
                     audio_bytes = resp.content
                     
                     # Try to guess format from URL if not specified
-                    if not request.audio_format and "." in request.audio_url:
-                        ext = request.audio_url.split(".")[-1].lower()
+                    if not request.audio_format and "." in str(request.audio_url):
+                        ext = str(request.audio_url).split(".")[-1].lower()
                         if ext in ["mp3", "wav"]:
-                            audio_format = ext
+                            audio_format_str = ext
             except Exception as e:
                 raise HTTPException(status_code=400, detail=f"Audio download failed: {str(e)}")
         
         else:
+            # 🛡️ HONEPOT FEATURE: If no audio but message exists, it's a "Probe"
+            if request.message:
+                log_interaction("PROBE_DETECTED", {"message": request.message})
+                return DetectionResponse(
+                    classification="AI",
+                    confidence=0.99,
+                    explanation="Automated agentic probe detected. This interaction has been logged for security analysis as part of our honeypot protocol.",
+                    detected_language="Detecting..."
+                )
             raise HTTPException(status_code=400, detail="Either audioBase64 or audioUrl is required")
 
         # Process audio bytes
         try:
-            audio, sr = audio_processor.convert_to_wav(audio_bytes, audio_format)
+            audio, sr = audio_processor.convert_to_wav(audio_bytes, audio_format_str)
             features = audio_processor.extract_features(audio, sr)
             feature_vector = audio_processor.features_to_vector(features)
         except Exception as e:
@@ -187,9 +218,8 @@ async def detect_voice(
         classification, confidence, metadata = voice_classifier.predict(feature_vector)
         
         # Get language from request
-        target_language = request.language.lower() if request.language else "en"
-        if target_language not in ["en", "ta", "hi", "ml", "te"]:
-            target_language = "en"
+        lang_input = str(request.language).lower() if request.language else "en"
+        target_language = lang_input if lang_input in ["en", "ta", "hi", "ml", "te"] else "en"
         
         lang_name = {
             "en": "English",
@@ -229,6 +259,28 @@ async def detect_voice(
 
 
 # Error handlers
+from fastapi.exceptions import RequestValidationError
+
+@app.exception_handler(RequestValidationError)
+async def validation_exception_handler(request: Request, exc: RequestValidationError):
+    # Log the invalid interaction
+    try:
+        body_bytes = await request.body()
+        body_str = body_bytes.decode() if body_bytes else None
+    except:
+        body_str = "could not decode body"
+
+    log_interaction("INVALID_REQUEST_BODY", {
+        "errors": exc.errors(),
+        "body": body_str
+    }, "warning")
+    
+    return JSONResponse(
+        status_code=422,
+        content={"error": "Validation failed", "detail": exc.errors()}
+    )
+
+
 @app.exception_handler(HTTPException)
 async def http_exception_handler(request: Request, exc: HTTPException):
     return JSONResponse(
