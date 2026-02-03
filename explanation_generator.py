@@ -1,194 +1,143 @@
 """
 Explanation Generator Module
-Uses Ollama with translategemma for multi-language explanations.
+Template-based explanation system (Ollama-free).
+Supports Tamil, English, Hindi, Malayalam, and Telugu.
 """
 
-import requests
-import json
-from typing import Dict, Any, Optional
+from typing import Dict, Any
 
-# Language mappings
-LANGUAGE_NAMES = {
-    "en": "English",
-    "ta": "Tamil",
-    "hi": "Hindi",
-    "ml": "Malayalam",
-    "te": "Telugu"
+# Language-specific explanation templates
+EXPLANATION_TEMPLATES = {
+    "English": {
+        "AI_GENERATED": [
+            "This audio sample is classified as AI-generated with {confidence:.1%} confidence. The analysis detected {artifacts}. These characteristics are typically associated with synthetic speech synthesis.",
+            "High probability of AI generation ({confidence:.1%}) based on {artifacts}. The speech patterns exhibit unnatural consistency and reduced micro-variations.",
+            "Synthetic voice detected with {confidence:.1%} confidence. Key indicators include {artifacts} and artificial spectral characteristics."
+        ],
+        "HUMAN": [
+            "This audio sample is classified as human-generated with {confidence:.1%} confidence. The analysis detected {artifacts}. These characteristics are consistent with natural human speech patterns.",
+            "Natural human speech detected ({confidence:.1%}) with key indicators like {artifacts}. The audio exhibits organic pitch variations and natural formant transitions.",
+            "Human voice confirmed with {confidence:.1%} confidence. The presence of {artifacts} aligns with organic vocal cord characteristics."
+        ]
+    },
+    "Tamil": {
+        "AI_GENERATED": "இந்த ஆடியோ மாதிரி AI-ஆல் உருவாக்கப்பட்டது ({confidence:.1%} உறுதி). {artifacts} கண்டறியப்பட்டுள்ளன. இது செயற்கை பேச்சு தொகுப்புடன் தொடர்புடையது.",
+        "HUMAN": "இந்த ஆடியோ மாதிரி ஒரு மனிதரால் பேசப்பட்டது ({confidence:.1%} உறுதி). {artifacts} கண்டறியப்பட்டுள்ளன. இது இயற்கையான மனித பேச்சு முறைகளுடன் ஒத்துப்போகிறது."
+    },
+    "Hindi": {
+        "AI_GENERATED": "यह ऑडियो नमूना AI-जनित के रूप में वर्गीकृत है ({confidence:.1%} आत्मविश्वास)। {artifacts} का पता चला है। ये विशेषताएं कृत्रिम वाक् संश्लेषण से जुड़ी हैं।",
+        "HUMAN": "यह ऑडियो नमूना मानव-जनित के रूप में वर्गीकृत है ({confidence:.1%} आत्मविश्वास)। {artifacts} का पता चला है। ये विशेषताएं प्राकृतिक मानव भाषण पैटर्न के अनुरूप हैं।"
+    },
+    "Malayalam": {
+        "AI_GENERATED": "ഈ ഓഡിയോ സാമ്പിൾ AI-നിർമ്മിതമായി തരംതിരിച്ചിരിക്കുന്നു ({confidence:.1%} ആത്മവിശ്വാസം). {artifacts} കണ്ടെത്തി. ഈ സവിശേഷതകൾ സിന്തറ്റിക് സ്പീച്ച് സിന്തസിസുമായി ബന്ധപ്പെട്ടതാണ്.",
+        "HUMAN": "ഈ ഓഡിയോ സാമ്പിൾ മനുഷ്യൻ സംസാരിച്ചതായി തരംതിരിച്ചിരിക്കുന്നു ({confidence:.1%} ആത്മവിശ്വാസം). {artifacts} കണ്ടെത്തി. ഈ സവിശേഷതകൾ സ്വാഭാവിക മനുഷ്യ സംസാര രീതികളുമായി പൊരുത്തപ്പെടുന്നു."
+    },
+    "Telugu": {
+        "AI_GENERATED": "ఈ ఆడియో నమూనా AI-ద్వారా రూపొందించబడినట్లుగా వర్గీకరించబడింది ({confidence:.1%} విశ్వాసం). {artifacts} గుర్తించబడ్డాయి. ఈ లక్షణాలు కృత్రిమ ప్రసంగ సంశ్లేషణతో సంబంధం కలిగి ఉంటాయి.",
+        "HUMAN": "ఈ ఆడియో నమూనా మానవ-జనితమైనదిగా వర్గీకరించబడింది ({confidence:.1%} విశ్వాసం). {artifacts} గుర్తించబడ్డాయి. ఈ లక్షణాలు సహజ మానవ ప్రసంగ నమూనాలకు అనుగుణంగా ఉన్నాయి."
+    }
 }
 
-LANGUAGE_CODES = {
-    "english": "en",
-    "tamil": "ta",
-    "hindi": "hi",
-    "malayalam": "ml",
-    "telugu": "te"
+# Artifact translations for non-English templates
+ARTIFACT_NAMES = {
+    "unnaturally consistent pitch patterns": {
+        "Tamil": "இயற்கைக்கு மாறான சுருதி முறைகள்",
+        "Hindi": "अस्वाभाविक रूप से सुसंगत पिच पैटर्न",
+        "Malayalam": "അസ്വാഭാവികമായ പിച്ച് പാറ്റേണുകൾ",
+        "Telugu": "అసాధారణమైన పిచ్ నమూనాలు"
+    },
+    "synthetic spectral envelope": {
+        "Tamil": "செயற்கை நிறமாலை உறை",
+        "Hindi": "कृत्रिम वर्णक्रमीय लिफाफा",
+        "Malayalam": "സിന്തറ്റിക് സ്പെക്ട്രൽ എൻവലപ്പ്",
+        "Telugu": "కృత్రిమ స్పెక్ట్రల్ ఎన్వలప్"
+    },
+    "reduced micro-variations in formants": {
+        "Tamil": "குறைக்கப்பட்ட நுண் மாறுபாடுகள்",
+        "Hindi": "फॉर्मेंट्स में कम सूक्ष्म बदलाव",
+        "Malayalam": "കുറഞ്ഞ സൂക്ഷ്മ വ്യതിയാനങ്ങൾ",
+        "Telugu": "తగ్గిన మైక్రో-వైవిధ్యాలు"
+    },
+    "natural breathing patterns": {
+        "Tamil": "இயற்கையான சுவாச முறைகள்",
+        "Hindi": "प्राकृतिक सांस लेने के पैटर्न",
+        "Malayalam": "സ്വാഭാവിക ശ്വസന രീതികൾ",
+        "Telugu": "సహజ శ్వాస నమూనాలు"
+    },
+    "organic pitch variations": {
+        "Tamil": "இயற்கையான சுருதி மாறுபாடுகள்",
+        "Hindi": "प्राकृतिक पिच विविधताएं",
+        "Malayalam": "സ്വാഭാവിക പിച്ച് വ്യത്യാസങ്ങൾ",
+        "Telugu": "సహజ పిచ్ వైవిధ్యాలు"
+    },
+    "natural formant transitions": {
+        "Tamil": "இயற்கையான பேச்சொலி மாற்றங்கள்",
+        "Hindi": "प्राकृतिक फॉर्मेंट संक्रमण",
+        "Malayalam": "സ്വാഭാവിക ഫോർമാന്റ് സംക്രമണങ്ങൾ",
+        "Telugu": "సహజమైన ఫార్మెంట్ పరిವರ್తనాలు"
+    }
 }
 
 
 class ExplanationGenerator:
     """
-    Generate explanations for voice classification results.
-    Uses Ollama with translategemma for multi-language support.
+    Generate explanations for voice classification results using templates.
+    No Ollama or external LLM dependency.
     """
     
-    OLLAMA_URL = "http://localhost:11434"
-    MODEL_NAME = "translategemma:4b"
-    FALLBACK_MODEL = "llama3.2:3b"  # Smaller fallback if translategemma unavailable
-    
     def __init__(self):
-        self.available_model = self._check_available_model()
-    
-    def _check_available_model(self) -> Optional[str]:
-        """Check which model is available in Ollama."""
-        try:
-            response = requests.get(f"{self.OLLAMA_URL}/api/tags", timeout=5)
-            if response.status_code == 200:
-                models = response.json().get("models", [])
-                model_names = [m.get("name", "") for m in models]
-                
-                # Check for translategemma first
-                for name in model_names:
-                    if "translategemma" in name.lower():
-                        return name
-                
-                # Check for fallback
-                for name in model_names:
-                    if any(x in name.lower() for x in ["llama", "gemma", "mistral", "phi"]):
-                        return name
-                
-                if model_names:
-                    return model_names[0]
-            
-            return None
-        except Exception as e:
-            print(f"Error checking Ollama: {e}")
-            return None
-    
-    def _call_ollama(self, prompt: str, model: Optional[str] = None) -> str:
-        """Make a request to Ollama API."""
-        model = model or self.available_model or self.MODEL_NAME
-        
-        try:
-            response = requests.post(
-                f"{self.OLLAMA_URL}/api/generate",
-                json={
-                    "model": model,
-                    "prompt": prompt,
-                    "stream": False,
-                    "options": {
-                        "temperature": 0.7,
-                        "num_predict": 256
-                    }
-                },
-                timeout=60
-            )
-            
-            if response.status_code == 200:
-                return response.json().get("response", "")
-            else:
-                print(f"Ollama error: {response.status_code} - {response.text}")
-                return ""
-                
-        except requests.exceptions.ConnectionError:
-            print("Could not connect to Ollama. Make sure it's running.")
-            return ""
-        except Exception as e:
-            print(f"Error calling Ollama: {e}")
-            return ""
+        # Always available as it's template-based
+        self.available_model = "TemplateSystem"
     
     def generate_explanation(
         self,
         classification: str,
         confidence: float,
         metadata: Dict[str, Any],
-        target_language: str = "en"
+        target_language: str = "English"
     ) -> str:
         """
-        Generate a detailed explanation for the classification result.
+        Produce an explanation using localized templates.
         
         Args:
-            classification: "AI" or "Human"
+            classification: "AI_GENERATED" or "HUMAN"
             confidence: Confidence score (0-1)
             metadata: Analysis metadata from classifier
-            target_language: Target language code (en, ta, hi, ml, te)
+            target_language: Target language name
             
         Returns:
-            Explanation string in target language
+            Localized explanation string
         """
-        # Build explanation prompt
+        # Normalize language name
+        lang = target_language if target_language in EXPLANATION_TEMPLATES else "English"
+        
+        # Get indicators and artifacts
         indicators = metadata.get("analysis_indicators", {})
-        artifacts = indicators.get("detected_artifacts", [])
+        artifacts_list = indicators.get("detected_artifacts", [])
         
-        artifacts_text = ", ".join(artifacts) if artifacts else "no specific artifacts"
-        
-        prompt = f"""Generate a brief, technical explanation for a voice authenticity analysis result.
-
-Classification: {classification}-generated voice
-Confidence: {confidence:.1%}
-Pattern Type: {indicators.get('pattern_consistency', 'unknown')}
-Spectral Analysis: {indicators.get('spectral_characteristics', 'unknown')}
-Key Findings: {artifacts_text}
-
-Write a 2-3 sentence explanation that:
-1. States the classification clearly
-2. Mentions the confidence level
-3. Explains the key audio characteristics that led to this conclusion
-
-Be concise and technical. Do not use markdown or special formatting."""
-
-        # Get base explanation in English
-        explanation = self._call_ollama(prompt)
-        
-        if not explanation:
-            # Fallback to template-based explanation
-            explanation = self._generate_fallback_explanation(
-                classification, confidence, indicators
-            )
-        
-        # Translate if needed
-        if target_language != "en" and target_language in LANGUAGE_NAMES:
-            explanation = self._translate(explanation, target_language)
-        
-        return explanation.strip()
-    
-    def _generate_fallback_explanation(
-        self,
-        classification: str,
-        confidence: float,
-        indicators: Dict[str, Any]
-    ) -> str:
-        """Generate explanation without LLM (fallback)."""
-        artifacts = indicators.get("detected_artifacts", [])
-        
-        if classification == "AI":
-            base = f"This audio sample is classified as AI-generated with {confidence:.1%} confidence."
-            if artifacts:
-                base += f" The analysis detected {', '.join(artifacts[:2])}."
-            base += " These characteristics are typically associated with synthetic speech synthesis."
+        # Format artifacts for the specific language
+        if lang == "English":
+            artifacts_text = ", ".join(artifacts_list) if artifacts_list else "specific audio markers"
         else:
-            base = f"This audio sample is classified as human-generated with {confidence:.1%} confidence."
-            if artifacts:
-                base += f" The analysis detected {', '.join(artifacts[:2])}."
-            base += " These characteristics are consistent with natural human speech patterns."
+            # Try to translate artifact names, otherwise use them as is
+            translated_artifacts = []
+            for art in artifacts_list:
+                translated = ARTIFACT_NAMES.get(art, {}).get(lang, art)
+                translated_artifacts.append(translated)
+            artifacts_text = ", ".join(translated_artifacts) if translated_artifacts else "ஆடியோ குறிகாட்டிகள்" if lang=="Tamil" else "ऑडियो संकेतक" if lang=="Hindi" else "ഓഡിയോ മാർക്കറുകൾ" if lang=="Malayalam" else "ఆడియో గుర్తులు"
+            
+        # Select template
+        template = EXPLANATION_TEMPLATES[lang][classification]
         
-        return base
-    
-    def _translate(self, text: str, target_language: str) -> str:
-        """Translate text to target language using Ollama."""
-        lang_name = LANGUAGE_NAMES.get(target_language, target_language)
-        
-        # Use translategemma specifically for translation
-        prompt = f"""Translate the following English text to {lang_name}. 
-Only output the translation, nothing else.
-
-Text: {text}
-
-Translation:"""
-        
-        translated = self._call_ollama(prompt, self.MODEL_NAME)
-        
-        # Return original if translation fails
-        return translated if translated else text
+        # If English, we have a list of alternatives to keep it varied
+        if isinstance(template, list):
+            import random
+            template = random.choice(template)
+            
+        return template.format(
+            confidence=confidence,
+            artifacts=artifacts_text
+        )
 
 
 # Singleton instance

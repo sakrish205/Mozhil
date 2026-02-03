@@ -38,7 +38,7 @@ class VoiceClassifier:
     EXPECTED_FEATURES = 106  # Based on MFCC + spectral features
     
     # Classification labels
-    LABELS = {0: "Human", 1: "AI"}
+    LABELS = {0: "HUMAN", 1: "AI_GENERATED"}
     
     def __init__(self):
         self.model: Optional[Pipeline] = None

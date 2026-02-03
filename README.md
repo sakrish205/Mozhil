@@ -12,10 +12,7 @@ If you are new to the project, please start with our **[Beginner Tutorial](file:
 # 1. Install dependencies
 pip install -r requirements.txt
 
-# 2. Pull the AI explanation model
-ollama pull translategemma:4b
-
-# 3. Start the detection server
+# 2. Start the detection server
 python main.py
 ```
 
@@ -27,23 +24,16 @@ When submitting or testing via the competition portal, use the following setting
 | Field | Value |
 |-------|-------|
 | **x-api-key** | `mozhil-api-key-2024` |
-| **Endpoint URL** | `https://YOUR-NGROK-URL.ngrok-free.dev/detect` |
-| **Language** | `en`, `ta`, `hi`, `ml`, or `te` |
-| **Audio Format** | `wav` (recommended) or `mp3` |
+| **Endpoint URL** | `https://YOUR-NGROK-URL.ngrok-free.dev/api/voice-detection` |
+| **Language** | `Tamil`, `English`, `Hindi`, `Malayalam`, or `Telugu` |
+| **Audio Format** | `mp3` |
 | **Audio Base64 Format** | Contents of `Audio Base64 Format.txt` |
-
-### Supported Languages
-- 🇬🇧 `en` - English
-- 🇮🇳 `ta` - Tamil (தமிழ்)
-- 🇮🇳 `hi` - Hindi (हिंदी)
-- 🇮🇳 `ml` - Malayalam (മലയാളം)
-- 🇮🇳 `te` - Telugu (తెలుగు)
 
 ---
 
 ## 📡 API Reference
 
-### `POST /detect`
+### `POST /api/voice-detection`
 The primary endpoint for voice analysis.
 
 **Headers:**
@@ -55,9 +45,23 @@ Content-Type: application/json
 **Request Body:**
 ```json
 {
-  "language": "en",
-  "audioFormat": "wav",
-  "audioBase64": "UklGRuS6AgBXQVZF..."
+  "language": "Tamil",
+  "audioFormat": "mp3",
+  "audioBase64": "SUQzBAAAAAAAI1RTU0...",
+  "audioUrl": "https://example.com/audio.mp3",
+  "message": "Tester verification"
+}
+```
+*Note: Use either `audioBase64` or `audioUrl`. `message` is optional.*
+
+**Response Body (Success):**
+```json
+{
+  "status": "success",
+  "language": "Tamil",
+  "classification": "AI_GENERATED",
+  "confidenceScore": 0.91,
+  "explanation": "Unnatural pitch consistency and robotic speech patterns detected"
 }
 ```
 
@@ -77,11 +81,10 @@ ngrok http 8000
 - `audio_processor.py`: handles feature extraction (MFCCs).
 - `classifier.py`: The core machine learning logic.
 - `convert_audio.py`: Helper script to generate Base64 strings.
-- `explanation_generator.py`: Uses Ollama to explain *why* a voice was flagged.
+- `explanation_generator.py`: Generates localized explanations using predefined templates.
 
 ---
 
 ## ⚙️ Requirements
 - **Python 3.9+**
 - **FFmpeg**: Required for audio processing.
-- **Ollama**: Required for generating natural language explanations.

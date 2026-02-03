@@ -15,14 +15,6 @@ This is a background tool that helps the program "hear" your audio.
 *   **Windows:** Download from [gyan.dev](https://www.gyan.dev/ffmpeg/builds/). Extract and add the `bin` folder to your System PATH.
 *   Check it by typing `ffmpeg -version` in a terminal.
 
-### 3. Ollama (AI Explainer)
-Used to generate natural language explanations.
-*   Download from [ollama.com](https://ollama.com/).
-*   Once installed, open a terminal and run:
-    ```bash
-    ollama pull translategemma:4b
-    ```
-
 ---
 
 ## 🐍 Step 2: Setup the Project
@@ -69,11 +61,19 @@ The API doesn't accept `.wav` files directly; it needs a "Base64" text version.
 ## 🧪 Step 6: Testing the Result
 Go to your testing tool or competition form and fill it as follows:
 
-- **Endpoint URL:** `https://[YOUR-NGROK-URL]/detect`
+- **Endpoint URL:** `https://[YOUR-NGROK-URL]/api/voice-detection`
 - **x-api-key:** `mozhil-api-key-2024`
-- **Language:** `en` (or your chosen language code)
-- **Audio Format:** `wav`
+- **Language:** `Tamil`, `English`, `Hindi`, `Malayalam`, or `Telugu`
+- **Audio Format:** `mp3`
 - **Audio Base64 Format:** *Paste the text you copied in Step 5.*
+- **Audio URL:** (Optional) Use a direct link to an MP3 instead of Base64.
+
+### 🎯 Evaluation Tip
+The competition uses strict classification values:
+- `AI_GENERATED`
+- `HUMAN`
+
+Our API is fully aligned with these rules.
 
 ---
 
@@ -87,5 +87,5 @@ Go to your testing tool or competition form and fill it as follows:
 *   **Fix:** Ensure names are exactly as shown above (case-sensitive).
 
 ### 3. "500 Internal Server Error"
-*   **Cause:** FFmpeg or Ollama might not be installed correctly.
-*   **Fix:** Run `ffmpeg -version` and `ollama list` to verify they work.
+*   **Cause:** FFmpeg might not be installed correctly or there's a file permissions issue.
+*   **Fix:** Run `ffmpeg -version` to verify it works. Check the terminal for error logs.
