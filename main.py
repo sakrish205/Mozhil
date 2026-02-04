@@ -3,7 +3,7 @@ AI Voice Detection API
 Multi-language support for Tamil, English, Hindi, Malayalam, and Telugu.
 
 Endpoints:
-    POST /detect - Analyze audio to determine if AI or human generated
+    POST /api/voice-detection - Analyze audio to determine if AI or human generated
     GET /health - Health check endpoint
 """
 
