@@ -125,7 +125,7 @@ async def detect_voice(
     Strictly follows the competition format with added tester support for audioUrl.
     """
     # 🛡️ SECURITY: Validate API Key
-    VALID_API_KEY = "mozhil-api-key-2024"
+    VALID_API_KEY = "mozhil-api-key-2026"
     if x_api_key != VALID_API_KEY:
         return error_json("Invalid API key or unauthorized access", 401)
 

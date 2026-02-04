@@ -1,6 +1,6 @@
-# 🎓 Beginner's Guide: AI Voice Detection
+# 🎓 Mozhil: AI Voice Detection User Guide
 
-Welcome! This guide will take you from a fresh installation to successfully testing your own voice recordings.
+Welcome! This guide will take you from a fresh installation to successfully testing your own voice recordings with the **Mozhil** system.
 
 ---
 
@@ -11,15 +11,15 @@ Before running the code, you need three main tools installed on your system:
 Download and install from [python.org](https://www.python.org/). **Make sure to check "Add Python to PATH" during installation.**
 
 ### 2. FFmpeg (Audio Processor)
-This is a background tool that helps the program "hear" your audio.
+This is a background tool that helps the program "hear" and decode your audio.
 *   **Windows:** Download from [gyan.dev](https://www.gyan.dev/ffmpeg/builds/). Extract and add the `bin` folder to your System PATH.
-*   Check it by typing `ffmpeg -version` in a terminal.
+*   **Verify:** Type `ffmpeg -version` in a terminal. If it shows a version, you're ready!
 
 ---
 
 ## 🐍 Step 2: Setup the Project
-1.  Open a terminal in the project folder (`Mozhil`).
-2.  Install the Python libraries:
+1.  Open your terminal inside the `Mozhil` project directory.
+2.  Install all required AI and Audio libraries:
     ```bash
     pip install -r requirements.txt
     ```
@@ -27,65 +27,76 @@ This is a background tool that helps the program "hear" your audio.
 ---
 
 ## 🚀 Step 3: Run the API Server
-The server must be running to process requests.
+The server must be active to process requests. Start it with:
 ```bash
 python main.py
 ```
-Wait until you see: `Uvicorn running on http://0.0.0.0:8000`. **Keep this window open!**
+Wait until you see: `Uvicorn running on http://0.0.0.0:8000`. **Keep this terminal window open!**
 
 ---
 
-## 🌐 Step 4: Make it Public (Ngrok)
-To use the competition website, your server needs a public address.
-1.  Download [ngrok](https://ngrok.com/).
-2.  In a **new** terminal window, run:
+## 🌐 Step 4: Accessing the API
+### Local Testing
+Your API is available locally at: `http://localhost:8000/api/voice-detection`
+
+### Public Access (Ngrok)
+If you need to test from an external website or competition portal:
+1.  Open a **new** terminal and run:
     ```bash
     ngrok http 8000
     ```
-3.  Copy the `Forwarding` URL (looks like `https://abc-123.ngrok-free.dev`).
+2.  Use the `Forwarding` URL (e.g., `https://xyz-123.ngrok-free.dev`) as your Base URL.
 
 ---
 
-## 🎤 Step 5: Convert Your Audio
-The API doesn't accept `.wav` files directly; it needs a "Base64" text version.
-1.  Put your audio file (e.g., `my_voice.wav`) in the `audio/` folder.
-2.  Run the converter:
+## 🎤 Step 5: Preparing Your Audio (Base64)
+The API requires audio to be sent as a **Base64 string**.
+1.  Place your MP3 or WAV file in the `audio/` folder inside the project.
+2.  Run the conversion script:
     ```bash
     python convert_audio.py
     ```
-3.  Enter the path when asked: `audio/my_voice.wav`.
-4.  Open the newly created `Audio Base64 Format.txt` and **copy all the text inside**.
+3.  Follow the prompts to select your file. It will create a file named `Audio Base64 Format.txt`.
+4.  Copy the entire content of that text file.
 
 ---
 
-## 🧪 Step 6: Testing the Result
-Go to your testing tool or competition form and fill it as follows:
+## 🧪 Step 6: Testing the Endpoint
+Use a tool like Postman, Thunder Client, or the competition tester:
 
-- **Endpoint URL:** `https://[YOUR-NGROK-URL]/api/voice-detection`
-- **x-api-key:** `mozhil-api-key-2024`
-- **Language:** `Tamil`, `English`, `Hindi`, `Malayalam`, or `Telugu`
-- **Audio Format:** `mp3`
-- **Audio Base64 Format:** *Paste the text you copied in Step 5.*
-- **Audio URL:** (Optional) Use a direct link to an MP3 instead of Base64.
+- **Method:** `POST`
+- **URL:** `[YOUR-SERVER-URL]/api/voice-detection`
+- **Header:** `x-api-key: mozhil-api-key-2026`
+- **Body (JSON):**
+```json
+{
+  "language": "Tamil",
+  "audioFormat": "mp3",
+  "audioBase64": "PASTE_YOUR_BASE64_STRING_HERE"
+}
+```
 
-### 🎯 Evaluation Tip
-The competition uses strict classification values:
-- `AI_GENERATED`
-- `HUMAN`
+---
 
-Our API is fully aligned with these rules.
+## 🎯 Understanding the Results
+Our system provides more than just a label. You will receive:
+1.  **Classification**: Either `AI_GENERATED` or `HUMAN`.
+2.  **Confidence Score**: A value from 0.0 to 1.0 (e.g., 0.95 means 95% sure).
+3.  **Detailed Explanation**: A multi-lingual reasoning (in Tamil, English, etc.) explaining **why** the AI reached that conclusion (e.g., "Detected unnatural spectral consistency").
 
 ---
 
 ## ❓ Troubleshooting
-### 1. "404 Not Found"
-*   **Cause:** Your URL is wrong or the server isn't running.
-*   **Fix:** Ensure the URL ends in `/detect`. Check if `python main.py` is still running.
+### 1. "401 Unauthorized"
+*   **Fix:** Check your `x-api-key`. It must be exactly `mozhil-api-key-2026`.
 
 ### 2. "422 Unprocessable Entity"
-*   **Cause:** Typo in field names (like `language` or `audioBase64`).
-*   **Fix:** Ensure names are exactly as shown above (case-sensitive).
+*   **Cause:** Typo in JSON field names.
+*   **Fix:** Ensure you use `language`, `audioFormat`, and `audioBase64` exactly as shown (case-sensitive).
 
 ### 3. "500 Internal Server Error"
-*   **Cause:** FFmpeg might not be installed correctly or there's a file permissions issue.
-*   **Fix:** Run `ffmpeg -version` to verify it works. Check the terminal for error logs.
+*   **Cause:** Usually means FFmpeg is missing or the audio data is corrupted.
+*   **Fix:** Ensure FFmpeg is in your system PATH. Try a standard MP3 file.
+
+### 4. Memory Errors
+*   **Note:** Mozhil is optimized for 512MB RAM environments. If you get memory errors, ensure you aren't trying to process audio longer than 30 seconds.

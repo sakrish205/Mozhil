@@ -1,0 +1,48 @@
+﻿Loaded pre-trained model from C:\Users\Saketha\Desktop\projects\Mozhil\models\voice_classifier.joblib
+Testing: audio\sample voice 1.mp3
+================================================================================
+Feature vector shape: (102,)
+
+Manual Artifact Analysis:
+MFCC Std Avg: 29.9433 (AI if >20)
+MFCC Delta Std Avg: 5.5307 (AI if <7)
+Combined AI signature: True
+
+================================================================================
+RESULT: HUMAN
+Confidence: 63.37%
+ML AI Probability: 7.72%
+Artifact Score: 80.00%
+Detected Artifacts: ['unnaturally consistent pitch patterns', 'reduced micro-variations in formants']
+================================================================================
+python : Traceback (most 
+recent call last):
+At line:1 char:1
++ python test_detailed.py 2>&1 
+| Out-File -FilePath 
+"test_output.txt" - ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          :  
+   NotSpecified: (Traceback (  
+  most recent call last)::St   
+ ring) [], RemoteException
+    + FullyQualifiedErrorId :  
+   NativeCommandError
+ 
+  File "C:\Users\Saketha\Deskto
+p\projects\Mozhil\test_detailed
+.py", line 50, in <module>
+    print("\u2717 INCORRECT")
+  File "C:\Program Files\Python
+311\Lib\encodings\cp1252.py", 
+line 19, in encode
+    return codecs.charmap_encod
+e(input,self.errors,encoding_ta
+ble)[0]
+           ^^^^^^^^^^^^^^^^^^^^
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+^^^^
+UnicodeEncodeError: 'charmap' 
+codec can't encode character 
+'\u2717' in position 0: 
+character maps to <undefined>

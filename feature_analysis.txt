@@ -1,0 +1,24 @@
+﻿Analyzing: audio\sample voice 1.mp3
+================================================================================
+
+Feature Vector Analysis:
+Total features: 102
+Mean: 114.4928
+Std: 498.3163
+Min: -189.0894
+Max: 3726.7319
+
+MFCC Statistics:
+MFCC Mean - Avg: -12.7950, Std: 55.8802
+MFCC Std - Avg: 29.9433, Std: 32.7329
+MFCC Delta Mean - Avg: -0.0378
+MFCC Delta Std - Avg: 5.5307
+
+Periodicity Analysis:
+Max FFT peak: 392.2245
+Median FFT: 248.6198
+Peak-to-Median ratio: 1.58
+
+================================================================================
+KEY INSIGHT: These values show the 'signature' of this AI voice.
+We need to train the model to recognize THESE specific patterns.
