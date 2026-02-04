@@ -67,45 +67,62 @@ class AudioProcessor:
     
     def convert_to_wav(self, audio_bytes: bytes, input_format: str = "mp3") -> Tuple[np.ndarray, int]:
         """
-        Convert audio bytes to WAV format and load as numpy array.
+        Convert audio bytes to a numpy array efficiently.
+        Optimized for low-memory environments.
         """
-        # Create temporary files
-        temp_input = os.path.join(self.temp_dir, f"input_audio.{input_format}")
-        temp_output = os.path.join(self.temp_dir, f"output_audio_{os.getpid()}.wav")
+        import gc
+        temp_input = os.path.join(self.temp_dir, f"input_audio_{os.getpid()}.{input_format}")
         
         try:
             # Write input audio to temp file
             with open(temp_input, "wb") as f:
                 f.write(audio_bytes)
             
-            # Try to load with specified format first
+            # 🧹 Free memory from raw bytes
+            del audio_bytes
+            gc.collect()
+            
+            # Load with pydub (more robust for MP3)
             try:
                 audio = AudioSegment.from_file(temp_input, format=input_format)
             except Exception as e:
                 print(f"Failed to load as {input_format}, trying auto-detect: {e}")
-                # Fallback to auto-detect
                 audio = AudioSegment.from_file(temp_input)
             
+            # 🕒 Limit duration to 30 seconds to save memory
+            max_duration_ms = 30 * 1000
+            if len(audio) > max_duration_ms:
+                audio = audio[:max_duration_ms]
+                print(f"Audio trimmed to 30 seconds for memory efficiency")
+
             # Convert to mono and set sample rate
             audio = audio.set_channels(1)
             audio = audio.set_frame_rate(self.SAMPLE_RATE)
             
-            # Export as WAV
-            audio.export(temp_output, format="wav")
+            # 🚀 Memory Optimization: Convert directly to numpy without creating a WAV file
+            # This saves disk I/O and RAM
+            y = np.array(audio.get_array_of_samples(), dtype=np.float32)
             
-            # Load with librosa
-            y, sr = librosa.load(temp_output, sr=self.SAMPLE_RATE, mono=True)
+            # Normalize to [-1, 1]
+            if audio.sample_width == 2:
+                y /= 32768.0
+            elif audio.sample_width == 4:
+                y /= 2147483648.0
             
-            return y, sr
+            # 🧹 Free pydub object
+            audio_sr = audio.frame_rate
+            del audio
+            gc.collect()
+            
+            return y, audio_sr
             
         finally:
-            # Cleanup temp files
-            for f in [temp_input, temp_output]:
-                if os.path.exists(f):
-                    try:
-                        os.remove(f)
-                    except:
-                        pass
+            if os.path.exists(temp_input):
+                try:
+                    os.remove(temp_input)
+                except:
+                    pass
+            gc.collect()
     
     def extract_features(self, audio: np.ndarray, sr: int) -> Dict[str, np.ndarray]:
         """

@@ -188,6 +188,10 @@ async def detect_voice(
             target_language=target_language
         )
         
+        # 🧹 Final memory cleanup
+        import gc
+        gc.collect()
+        
         return DetectionResponse(
             status="success",
             language=target_language,
