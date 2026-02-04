@@ -136,6 +136,7 @@ async def detect_voice(
         if request.audio_base64:
             # Process Base64
             try:
+                print(f"[{datetime.now()}] Decoding Base64 (length: {len(request.audio_base64)})")
                 audio_bytes = audio_processor.decode_base64_audio(request.audio_base64)
             except Exception as e:
                 return error_json(f"Malformed request: Base64 decoding failed - {str(e)}")
@@ -144,6 +145,7 @@ async def detect_voice(
             # Process URL
             import httpx
             try:
+                print(f"[{datetime.now()}] Downloading audio from URL: {request.audio_url}")
                 async with httpx.AsyncClient() as client:
                     resp = await client.get(str(request.audio_url), timeout=30.0)
                     if resp.status_code != 200:
@@ -157,17 +159,23 @@ async def detect_voice(
         
         # Audio format is expected to be mp3 per rules
         audio_format_str = "mp3"
+        print(f"[{datetime.now()}] Audio data size: {len(audio_bytes)} bytes")
         
         # Process audio bytes
         try:
+            print(f"[{datetime.now()}] Converting to WAV...")
             audio, sr = audio_processor.convert_to_wav(audio_bytes, audio_format_str)
+            print(f"[{datetime.now()}] Extracting features...")
             features = audio_processor.extract_features(audio, sr)
+            print(f"[{datetime.now()}] Converting to vector...")
             feature_vector = audio_processor.features_to_vector(features)
         except Exception as e:
             return error_json(f"Audio processing error: {str(e)}")
         
         # Classify voice
+        print(f"[{datetime.now()}] Running classification...")
         classification, confidence, metadata = voice_classifier.predict(feature_vector)
+        print(f"[{datetime.now()}] Result: {classification} ({confidence:.2f})")
         
         # Target language from request (Tamil, English, etc.)
         target_language = request.language
