@@ -12,11 +12,18 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 from typing import Optional, Any
-import time
-import traceback
-import json
-from datetime import datetime
 import os
+from datetime import datetime
+import json
+import traceback
+import time
+
+# 🔧 Cloud Environment Setup
+# Add local 'bin' to PATH so Render/Cloud can find FFmpeg
+bin_path = os.path.join(os.getcwd(), "bin")
+if os.path.exists(bin_path):
+    os.environ["PATH"] = f"{bin_path}{os.pathsep}{os.environ.get('PATH', '')}"
+    print(f"Added {bin_path} to PATH for FFmpeg support")
 
 # Import modules
 from audio_processor import audio_processor
